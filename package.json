@@ -1,0 +1,36 @@
+{
+  "name": "copy-pasta-checker",
+  "version": "1.0.0",
+  "description": "The Laziness Detector - Exposes copy-paste token launches",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc && cp src/config/library_of_legends.json dist/src/config/",
+    "start": "node dist/src/index.js",
+    "dev": "ts-node src/index.ts",
+    "fetch-legends": "ts-node scripts/fetch_legends.ts",
+    "test": "jest",
+    "test:phase1": "jest --testPathPattern=normalization",
+    "test:phase2": "jest --testPathPattern=proxy",
+    "test:phase3": "jest --testPathPattern=similarity",
+    "test:phase4": "jest --testPathPattern=verdict",
+    "test:phase5": "jest --testPathPattern=api"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.11",
+    "@types/node": "^20.10.0",
+    "@types/supertest": "^6.0.3",
+    "jest": "^29.7.0",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.1.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.2"
+  }
+}

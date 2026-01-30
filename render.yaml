@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: copy-pasta-checker
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: BASE_RPC_URL
+        sync: false
+      - key: APIX402_PAY_TO_ADDRESS
+        sync: false
+      - key: API_PRICE_USD
+        value: 0.01
+    healthCheckPath: /health
