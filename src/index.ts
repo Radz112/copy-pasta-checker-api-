@@ -1,7 +1,9 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import { config, isValidChain } from './config';
 import { analyzeToken, getCacheStats } from './services/analyzer';
+import { getClient } from './utils/proxy';
 import { APIX402RequestBody } from './types';
 
 const app = express();
@@ -10,21 +12,48 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Request logging middleware
+// Rate limiting: 60 requests per minute per IP
+const limiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    status: 'error',
+    error: { code: 'RATE_LIMITED', message: 'Too many requests. Try again later.' },
+  },
+});
+app.use('/api/', limiter);
+
+// Request logging middleware with duration
 app.use((req: Request, res: Response, next: NextFunction) => {
-  console.log(`${new Date().toISOString()} | ${req.method} ${req.path}`);
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`${new Date().toISOString()} | ${req.method} ${req.path} | ${res.statusCode} | ${duration}ms`);
+  });
   next();
 });
 
 /**
- * Health check endpoint
+ * Health check endpoint — verifies RPC connectivity using the cached client
  */
-app.get('/health', (req: Request, res: Response) => {
-  res.json({
-    status: 'healthy',
+app.get('/health', async (req: Request, res: Response) => {
+  let rpcStatus: 'connected' | 'unreachable';
+  try {
+    await getClient(config.baseRpcUrl).getChainId();
+    rpcStatus = 'connected';
+  } catch {
+    rpcStatus = 'unreachable';
+  }
+
+  const status = rpcStatus === 'connected' ? 'healthy' : 'degraded';
+  res.status(rpcStatus === 'connected' ? 200 : 503).json({
+    status,
     service: config.apix402.apiName,
     version: config.apix402.apiVersion,
     timestamp: new Date().toISOString(),
+    rpc: rpcStatus,
     cache: getCacheStats(),
   });
 });
@@ -164,10 +193,11 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   });
 });
 
-// Start server
-const PORT = config.port;
-app.listen(PORT, () => {
-  console.log(`
+// Only start the server when run directly (not imported for testing)
+if (require.main === module) {
+  const PORT = config.port;
+  app.listen(PORT, () => {
+    console.log(`
 🍝 Copy-Pasta Checker API
 ========================
 Version: ${config.apix402.apiVersion}
@@ -182,7 +212,8 @@ Endpoints:
   GET  /health              - Health check
   GET  /api/v1/similarity   - Endpoint info (APIX402 validation)
   POST /api/v1/similarity   - Analyze token bytecode
-  `);
-});
+    `);
+  });
+}
 
 export default app;

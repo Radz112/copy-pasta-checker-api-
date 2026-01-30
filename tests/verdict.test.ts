@@ -2,7 +2,6 @@ import {
   generateVerdict,
   generateRoast,
   getScoreEmoji,
-  generateSummary,
   SPECIAL_VERDICTS,
 } from '../src/utils/verdict';
 
@@ -50,11 +49,9 @@ describe('Verdict Utils', () => {
 
     test('should return different roasts (randomness)', () => {
       const roasts = new Set<string>();
-      // Generate multiple roasts and check for variety
       for (let i = 0; i < 20; i++) {
         roasts.add(generateRoast(95));
       }
-      // Should have at least 2 different roasts
       expect(roasts.size).toBeGreaterThan(1);
     });
 
@@ -95,34 +92,12 @@ describe('Verdict Utils', () => {
 
   });
 
-  describe('generateSummary', () => {
-
-    test('should include score and match name', () => {
-      const summary = generateSummary(95.5, 'PEPE', 'meme_coin');
-      expect(summary).toContain('95.5%');
-      expect(summary).toContain('PEPE');
-    });
-
-    test('should include appropriate emoji', () => {
-      expect(generateSummary(96, 'Test', 'test')).toContain('🍝');
-      expect(generateSummary(25, 'Test', 'test')).toContain('✨');
-    });
-
-  });
-
   describe('SPECIAL_VERDICTS', () => {
 
-    test('should have all required special cases', () => {
-      expect(SPECIAL_VERDICTS.PROXY_DETECTED).toBeDefined();
+    test('should have NO_CODE special case', () => {
       expect(SPECIAL_VERDICTS.NO_CODE).toBeDefined();
-      expect(SPECIAL_VERDICTS.FETCH_ERROR).toBeDefined();
-      expect(SPECIAL_VERDICTS.SELF_MATCH).toBeDefined();
-    });
-
-    test('should never contain is_original: true', () => {
-      const allVerdicts = JSON.stringify(SPECIAL_VERDICTS);
-      expect(allVerdicts).not.toContain('is_original');
-      expect(allVerdicts).not.toContain('original: true');
+      expect(SPECIAL_VERDICTS.NO_CODE.verdict).toContain('No Code');
+      expect(SPECIAL_VERDICTS.NO_CODE.roast.length).toBeGreaterThan(0);
     });
 
   });

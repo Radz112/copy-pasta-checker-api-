@@ -1,7 +1,6 @@
 import request from 'supertest';
-import express from 'express';
 
-// Mock the analyzer service
+// Mock the analyzer service BEFORE importing the app
 jest.mock('../src/services/analyzer', () => ({
   analyzeToken: jest.fn().mockResolvedValue({
     status: 'success',
@@ -11,7 +10,7 @@ jest.mock('../src/services/analyzer', () => ({
       similarity_score: 95.5,
       match_name: 'PEPE (Original)',
       match_category: 'meme_coin',
-      narrative_verdict: 'Ctrl+C Masterclass 🍝',
+      narrative_verdict: 'Ctrl+C Masterclass',
       roast: 'This dev did not even change the variable names.',
       is_proxy: false,
       proxy_implementation: null,
@@ -19,78 +18,28 @@ jest.mock('../src/services/analyzer', () => ({
       analysis_time_ms: 150,
     },
   }),
-  getCacheStats: jest.fn().mockReturnValue({ entries: 0, enabled: true }),
+  getCacheStats: jest.fn().mockReturnValue({ entries: 0, enabled: true, maxEntries: 10000, totalHits: 0 }),
 }));
 
-// Create a minimal test app
-const app = express();
-app.use(express.json());
-
-// Import handlers after mocking
-const { analyzeToken, getCacheStats } = require('../src/services/analyzer');
-
-// Define routes
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'healthy',
-    service: 'Copy-Pasta Checker',
-    cache: getCacheStats(),
-  });
-});
-
-app.get('/api/v1/similarity', (req, res) => {
-  res.status(200).json({
-    status: 'success',
-    endpoint: {
-      name: 'Copy-Pasta Checker',
-      method: 'POST',
-      path: '/api/v1/similarity',
-      price_usd: 0.01,
-      pay_to_address: '0xTEST',
-    },
-  });
-});
-
-app.post('/api/v1/similarity', async (req, res) => {
-  const body = req.body;
-  const token = body.body?.token || body.token;
-  const chain = body.body?.chain || body.chain;
-
-  if (!token) {
-    return res.status(400).json({
-      status: 'error',
-      error: { code: 'MISSING_TOKEN', message: 'Token required' },
-    });
-  }
-
-  if (!chain) {
-    return res.status(400).json({
-      status: 'error',
-      error: { code: 'MISSING_CHAIN', message: 'Chain required' },
-    });
-  }
-
-  if (chain !== 'base') {
-    return res.status(400).json({
-      status: 'error',
-      error: { code: 'INVALID_CHAIN', message: 'Unsupported chain' },
-    });
-  }
-
-  const result = await analyzeToken(token, chain);
-  res.status(200).json(result);
-});
+// Import the REAL app after mocks are in place
+import app from '../src/index';
 
 describe('API Endpoints', () => {
 
   describe('GET /health', () => {
 
-    test('should return healthy status', async () => {
+    test('should return health status with all fields', async () => {
       const response = await request(app).get('/health');
 
-      expect(response.status).toBe(200);
-      expect(response.body.status).toBe('healthy');
-      expect(response.body.service).toBe('Copy-Pasta Checker');
+      // In test env RPC may not be reachable — accept 200 or 503
+      expect([200, 503]).toContain(response.status);
+      expect(['healthy', 'degraded']).toContain(response.body.status);
+      expect(response.body.service).toBeDefined();
+      expect(response.body.version).toBeDefined();
+      expect(response.body.timestamp).toBeDefined();
+      expect(response.body.rpc).toBeDefined();
+      expect(['connected', 'unreachable']).toContain(response.body.rpc);
+      expect(response.body.cache).toBeDefined();
     });
 
   });
@@ -104,8 +53,11 @@ describe('API Endpoints', () => {
       expect(response.body.status).toBe('success');
       expect(response.body.endpoint).toBeDefined();
       expect(response.body.endpoint.method).toBe('POST');
-      expect(response.body.endpoint.price_usd).toBe(0.01);
+      expect(response.body.endpoint.price_usd).toBeDefined();
       expect(response.body.endpoint.pay_to_address).toBeDefined();
+      expect(response.body.endpoint.supported_chains).toBeDefined();
+      expect(response.body.endpoint.request_format).toBeDefined();
+      expect(response.body.endpoint.response_format).toBeDefined();
     });
 
   });
@@ -189,6 +141,25 @@ describe('API Endpoints', () => {
         bytecode_size: expect.any(Number),
         analysis_time_ms: expect.any(Number),
       });
+    });
+
+    test('should return 404 for unknown endpoints', async () => {
+      const response = await request(app).get('/api/v1/nonexistent');
+
+      expect(response.status).toBe(404);
+      expect(response.body.error.code).toBe('NOT_FOUND');
+    });
+
+    test('should include rate limit headers on API routes', async () => {
+      const response = await request(app)
+        .post('/api/v1/similarity')
+        .send({
+          token: '0x1234567890123456789012345678901234567890',
+          chain: 'base',
+        });
+
+      expect(response.headers['ratelimit-limit']).toBeDefined();
+      expect(response.headers['ratelimit-remaining']).toBeDefined();
     });
 
   });

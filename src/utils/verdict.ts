@@ -1,17 +1,13 @@
-/**
- * Verdict thresholds and corresponding messages
- */
 interface VerdictTier {
   minScore: number;
-  maxScore: number;
   verdict: string;
   roasts: string[];
 }
 
+/** Tiers ordered high-to-low. First match where score >= minScore wins. */
 const VERDICT_TIERS: VerdictTier[] = [
   {
     minScore: 95,
-    maxScore: 100,
     verdict: "Ctrl+C Masterclass 🍝",
     roasts: [
       "This dev didn't even change the variable names.",
@@ -26,7 +22,6 @@ const VERDICT_TIERS: VerdictTier[] = [
   },
   {
     minScore: 85,
-    maxScore: 94.99,
     verdict: "He changed the name and nothing else. 📋",
     roasts: [
       "Find & Replace: the only tool this dev knows.",
@@ -40,7 +35,6 @@ const VERDICT_TIERS: VerdictTier[] = [
   },
   {
     minScore: 70,
-    maxScore: 84.99,
     verdict: "Some effort was made... barely. 😐",
     roasts: [
       "Like a pizza with only one topping. Technically different.",
@@ -53,7 +47,6 @@ const VERDICT_TIERS: VerdictTier[] = [
   },
   {
     minScore: 50,
-    maxScore: 69.99,
     verdict: "Frankenstein Code 🧟",
     roasts: [
       "It's alive! But should it be?",
@@ -66,7 +59,6 @@ const VERDICT_TIERS: VerdictTier[] = [
   },
   {
     minScore: 0,
-    maxScore: 49.99,
     verdict: "Custom Logic Detected ✨",
     roasts: [
       "Either a genius or about to get rekt. No in-between.",
@@ -80,61 +72,19 @@ const VERDICT_TIERS: VerdictTier[] = [
   },
 ];
 
-/**
- * Gets the verdict tier for a given similarity score
- */
-function getVerdictTier(score: number): VerdictTier {
-  for (const tier of VERDICT_TIERS) {
-    if (score >= tier.minScore && score <= tier.maxScore) {
-      return tier;
-    }
-  }
-  // Fallback to lowest tier
-  return VERDICT_TIERS[VERDICT_TIERS.length - 1];
+function getTier(score: number): VerdictTier {
+  return VERDICT_TIERS.find(t => score >= t.minScore) || VERDICT_TIERS[VERDICT_TIERS.length - 1];
 }
 
-/**
- * Generates the narrative verdict based on similarity score
- */
-export function generateVerdict(similarityScore: number): string {
-  const tier = getVerdictTier(similarityScore);
-  return tier.verdict;
+export function generateVerdict(score: number): string {
+  return getTier(score).verdict;
 }
 
-/**
- * Generates a random roast based on similarity score
- */
-export function generateRoast(similarityScore: number): string {
-  const tier = getVerdictTier(similarityScore);
-  const randomIndex = Math.floor(Math.random() * tier.roasts.length);
-  return tier.roasts[randomIndex];
+export function generateRoast(score: number): string {
+  const roasts = getTier(score).roasts;
+  return roasts[Math.floor(Math.random() * roasts.length)];
 }
 
-/**
- * Special case verdicts for edge cases
- */
-export const SPECIAL_VERDICTS = {
-  PROXY_DETECTED: {
-    verdict: "Proxy Detected 🔍",
-    roast: "This is just a shell. The real code is hiding somewhere else.",
-  },
-  NO_CODE: {
-    verdict: "No Code Found ❌",
-    roast: "This address is emptier than the dev's promises.",
-  },
-  FETCH_ERROR: {
-    verdict: "Analysis Failed ⚠️",
-    roast: "Even our analyzer couldn't handle this one.",
-  },
-  SELF_MATCH: {
-    verdict: "Self-Aware Contract 🤖",
-    roast: "Congratulations, the contract matches itself. Revolutionary.",
-  },
-} as const;
-
-/**
- * Gets emoji for similarity score (for quick visual indication)
- */
 export function getScoreEmoji(score: number): string {
   if (score >= 95) return "🍝";
   if (score >= 85) return "📋";
@@ -143,35 +93,9 @@ export function getScoreEmoji(score: number): string {
   return "✨";
 }
 
-/**
- * Generates a brief summary combining verdict and context
- */
-export function generateSummary(
-  similarityScore: number,
-  matchName: string,
-  matchCategory: string
-): string {
-  const emoji = getScoreEmoji(similarityScore);
-
-  if (similarityScore >= 95) {
-    return `${emoji} ${similarityScore.toFixed(1)}% match to ${matchName}. Basically identical.`;
-  }
-  if (similarityScore >= 85) {
-    return `${emoji} ${similarityScore.toFixed(1)}% match to ${matchName}. Find & Replace detected.`;
-  }
-  if (similarityScore >= 70) {
-    return `${emoji} ${similarityScore.toFixed(1)}% similar to ${matchName}. Modified copy.`;
-  }
-  if (similarityScore >= 50) {
-    return `${emoji} ${similarityScore.toFixed(1)}% similar to ${matchName}. Hybrid code.`;
-  }
-  return `${emoji} ${similarityScore.toFixed(1)}% match. Relatively unique code.`;
-}
-
-export default {
-  generateVerdict,
-  generateRoast,
-  getScoreEmoji,
-  generateSummary,
-  SPECIAL_VERDICTS,
-};
+export const SPECIAL_VERDICTS = {
+  NO_CODE: {
+    verdict: "No Code Found ❌",
+    roast: "This address is emptier than the dev's promises.",
+  },
+} as const;

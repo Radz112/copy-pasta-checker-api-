@@ -135,6 +135,20 @@ describe('Normalization Utils', () => {
       expect(containsDelegateCall(upperCase)).toBe(true);
     });
 
+    test('should not detect f4 inside PUSH1 operand data', () => {
+      // PUSH1 (0x60) followed by 0xf4 as data, not as an opcode
+      // 60 f4 = PUSH1 0xf4 — f4 is data here, NOT DELEGATECALL
+      const bytecode = '0x6080604052' + '60f4' + '6080604052';
+      expect(containsDelegateCall(bytecode)).toBe(false);
+    });
+
+    test('should not detect f4 inside PUSH20 operand data', () => {
+      // PUSH20 with f4 embedded in the 20-byte address data
+      const addr = 'f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4';
+      const bytecode = `0x608060405273${addr}6080`;
+      expect(containsDelegateCall(bytecode)).toBe(false);
+    });
+
   });
 
 });

@@ -1,27 +1,22 @@
 import dotenv from 'dotenv';
-import path from 'path';
 import { LegendEntry } from '../types';
 
 dotenv.config();
 
-// Load Library of Legends
 let libraryOfLegends: LegendEntry[] = [];
 try {
   libraryOfLegends = require('./library_of_legends.json');
-} catch (error) {
+} catch {
   console.warn('Warning: library_of_legends.json not found. Run npm run fetch-legends first.');
 }
 
 export const config = {
-  // Server
   port: parseInt(process.env.PORT || '3000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
 
-  // RPC Endpoints
   baseRpcUrl: process.env.BASE_RPC_URL || 'https://mainnet.base.org',
   ethereumRpcUrl: process.env.ETHEREUM_RPC_URL || 'https://eth.llamarpc.com',
 
-  // APIX402 Configuration
   apix402: {
     payToAddress: process.env.APIX402_PAY_TO_ADDRESS || '0xYOUR_WALLET_ADDRESS_HERE',
     priceUsd: parseFloat(process.env.API_PRICE_USD || '0.01'),
@@ -30,18 +25,13 @@ export const config = {
     description: 'The Laziness Detector - Exposes copy-paste token launches by comparing bytecode against Library of Legends',
   },
 
-  // Supported chains
   supportedChains: ['base'] as const,
 
-  // Analysis settings
   analysis: {
     maxProxyDepth: 3,
-    minBytecodeSize: 200, // bytes
     cacheEnabled: true,
-    cacheTtl: Infinity, // Code never changes
   },
 
-  // Library of Legends
   library: libraryOfLegends,
 };
 
@@ -51,13 +41,6 @@ export function isValidChain(chain: string): chain is SupportedChain {
   return config.supportedChains.includes(chain as SupportedChain);
 }
 
-export function getRpcUrl(chain: SupportedChain): string {
-  switch (chain) {
-    case 'base':
-      return config.baseRpcUrl;
-    default:
-      return config.baseRpcUrl;
-  }
+export function getRpcUrl(_chain: SupportedChain): string {
+  return config.baseRpcUrl;
 }
-
-export default config;

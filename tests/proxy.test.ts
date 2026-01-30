@@ -60,8 +60,16 @@ describe('Proxy Detection Utils', () => {
 
     test('should detect DELEGATECALL at start', () => {
       // DELEGATECALL (f4) within first 100 bytes
-      const proxyLikeBytecode = '0x6080604052f4' + '60'.repeat(300);
+      const proxyLikeBytecode = '0x6080604052f4' + '00'.repeat(300);
       expect(hasProxyCharacteristics(proxyLikeBytecode)).toBe(true);
+    });
+
+    test('should not match f4 inside PUSH1 operand data', () => {
+      // PUSH1 (0x60) followed by 0xf4 as data — f4 is NOT an opcode here
+      // Long enough to not trigger the "short bytecode" heuristic (>200 hex chars)
+      // Does not start with a proxy prefix
+      const bytecode = '0x6080604052' + '60f4' + '00'.repeat(300);
+      expect(hasProxyCharacteristics(bytecode)).toBe(false);
     });
 
   });

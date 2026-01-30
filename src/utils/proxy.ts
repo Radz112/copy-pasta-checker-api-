@@ -1,247 +1,153 @@
 import { createPublicClient, http, getAddress, Hex } from 'viem';
 import { base } from 'viem/chains';
 import { ProxyDetectionResult } from '../types';
+import { config } from '../config';
 
-/**
- * EIP-1967 Implementation Slot
- * keccak256("eip1967.proxy.implementation") - 1
- */
-const EIP1967_IMPLEMENTATION_SLOT =
+/** Typed to the exact methods we use from viem's PublicClient */
+interface RpcClient {
+  getStorageAt(args: { address: `0x${string}`; slot: Hex }): Promise<Hex | undefined>;
+  getBytecode(args: { address: `0x${string}` }): Promise<`0x${string}` | undefined>;
+  getChainId(): Promise<number>;
+}
+
+/** keccak256("eip1967.proxy.implementation") - 1 */
+const EIP1967_SLOT =
   '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc' as Hex;
 
-/**
- * EIP-1167 Minimal Proxy bytecode patterns
- * These are the standard clone factory patterns
- */
-const EIP1167_PATTERNS = {
-  // Standard EIP-1167 prefix (before target address)
+const ZERO_ADDR = '0x' + '0'.repeat(40);
+const ZERO_SLOT = '0x' + '0'.repeat(64);
+
+const EIP1167 = {
   PREFIX: '363d3d373d3d3d363d73',
-  // Standard EIP-1167 suffix (after target address)
   SUFFIX: '5af43d82803e903d91602b57fd5bf3',
-  // Full length of minimal proxy bytecode (in hex chars, without 0x)
-  FULL_LENGTH: 90, // 45 bytes
+  FULL_LENGTH: 90,
 } as const;
 
-/**
- * Alternative clone patterns used by some factories
- */
-const CLONE_PATTERNS = [
-  // OpenZeppelin Clones
-  '363d3d373d3d3d363d73',
-  // Optionality clone
-  '363d3d373d3d3d3d60368038038091363936013d73',
-] as const;
+/** Clone patterns to scan for (EIP-1167 prefix is checked first via startsWith) */
+const ALT_CLONE_PATTERN = '363d3d373d3d3d3d60368038038091363936013d73';
 
-/**
- * Creates a Viem client for the specified chain
- */
-function getClient(rpcUrl?: string) {
-  return createPublicClient({
-    chain: base,
-    transport: http(rpcUrl || process.env.BASE_RPC_URL),
-  });
+const PROXY_PREFIXES = ['363d3d37', '3660', '366000'] as const;
+
+/** Cached viem client per RPC URL */
+const clientCache = new Map<string, RpcClient>();
+
+export function getClient(rpcUrl?: string): RpcClient {
+  const url = rpcUrl || config.baseRpcUrl;
+  let client = clientCache.get(url);
+  if (!client) {
+    client = createPublicClient({ chain: base, transport: http(url) }) as unknown as RpcClient;
+    clientCache.set(url, client);
+  }
+  return client;
+}
+
+function extractAddress(hex: string, start: number): string | null {
+  if (hex.length < start + 40) return null;
+  return getAddress(`0x${hex.slice(start, start + 40)}`);
 }
 
 /**
- * Detects if bytecode is an EIP-1167 Minimal Proxy (Clone)
- *
- * EIP-1167 proxies have a standard bytecode format:
- * 363d3d373d3d3d363d73[20-byte-address]5af43d82803e903d91602b57fd5bf3
- *
- * @param bytecode - Raw bytecode hex string
- * @returns Implementation address if detected, null otherwise
+ * Detects EIP-1167 minimal proxy pattern in bytecode.
+ * Returns the implementation address or null.
  */
 export function detectEIP1167(bytecode: string): string | null {
   const code = bytecode.toLowerCase().replace('0x', '');
 
-  // Check for standard EIP-1167 pattern
-  if (code.startsWith(EIP1167_PATTERNS.PREFIX)) {
-    // Extract the 20-byte (40 hex char) implementation address
-    const addressStart = EIP1167_PATTERNS.PREFIX.length;
-    const addressEnd = addressStart + 40;
-
-    if (code.length >= addressEnd) {
-      const addressHex = code.slice(addressStart, addressEnd);
-
-      // Verify suffix if bytecode is complete
-      const expectedSuffix = code.slice(addressEnd);
-      if (expectedSuffix.startsWith(EIP1167_PATTERNS.SUFFIX.toLowerCase()) ||
-          code.length === EIP1167_PATTERNS.FULL_LENGTH) {
-        try {
-          return getAddress(`0x${addressHex}`);
-        } catch {
-          return null;
-        }
+  if (code.startsWith(EIP1167.PREFIX)) {
+    const addrEnd = EIP1167.PREFIX.length + 40;
+    if (code.length >= addrEnd) {
+      const suffix = code.slice(addrEnd);
+      if (suffix.startsWith(EIP1167.SUFFIX) || code.length === EIP1167.FULL_LENGTH) {
+        return extractAddress(code, EIP1167.PREFIX.length);
       }
     }
   }
 
-  // Check alternative clone patterns
-  for (const pattern of CLONE_PATTERNS) {
-    const idx = code.indexOf(pattern.toLowerCase());
-    if (idx !== -1) {
-      const addressStart = idx + pattern.length;
-      const addressEnd = addressStart + 40;
-      if (code.length >= addressEnd) {
-        try {
-          return getAddress(`0x${code.slice(addressStart, addressEnd)}`);
-        } catch {
-          continue;
-        }
-      }
-    }
+  // Check alternative clone pattern
+  const idx = code.indexOf(ALT_CLONE_PATTERN);
+  if (idx !== -1) {
+    return extractAddress(code, idx + ALT_CLONE_PATTERN.length);
   }
 
   return null;
 }
 
 /**
- * Detects if contract is an EIP-1967 Transparent/UUPS Proxy
- * by reading the implementation storage slot
- *
- * @param address - Contract address to check
- * @param rpcUrl - Optional RPC URL
- * @returns Implementation address if detected, null otherwise
+ * Reads EIP-1967 implementation storage slot.
  */
-export async function detectEIP1967(
-  address: string,
-  rpcUrl?: string
-): Promise<string | null> {
-  const client = getClient(rpcUrl);
+export async function detectEIP1967(address: string, rpcUrl?: string): Promise<string | null> {
+  const slot = await getClient(rpcUrl).getStorageAt({
+    address: address as `0x${string}`,
+    slot: EIP1967_SLOT,
+  });
 
-  try {
-    const implementationSlot = await client.getStorageAt({
-      address: address as `0x${string}`,
-      slot: EIP1967_IMPLEMENTATION_SLOT,
-    });
+  if (!slot || slot === ZERO_SLOT) return null;
 
-    if (!implementationSlot || implementationSlot === '0x' + '0'.repeat(64)) {
-      return null;
-    }
+  const addr = '0x' + slot.slice(-40);
+  if (addr === ZERO_ADDR) return null;
 
-    // Extract address from the 32-byte slot value (last 20 bytes)
-    const addressHex = '0x' + implementationSlot.slice(-40);
-
-    // Verify it's not zero address
-    if (addressHex === '0x' + '0'.repeat(40)) {
-      return null;
-    }
-
-    return getAddress(addressHex);
-  } catch (error) {
-    console.error('EIP-1967 detection error:', error);
-    return null;
-  }
+  return getAddress(addr);
 }
 
-/**
- * Quick heuristic check for proxy patterns in bytecode
- * Used as a fast pre-filter before more expensive RPC calls
- */
 export function hasProxyCharacteristics(bytecode: string): boolean {
   const code = bytecode.toLowerCase().replace('0x', '');
 
-  // Very short bytecode is suspicious
-  if (code.length < 400) { // < 200 bytes
-    return true;
-  }
+  // Small contracts are likely proxies
+  if (code.length < 400) return true;
 
-  // Contains DELEGATECALL (0xf4)
-  if (code.includes('f4')) {
-    // Additional heuristic: DELEGATECALL near the start suggests proxy
-    const firstDelegateCall = code.indexOf('f4');
-    if (firstDelegateCall < 200) { // Within first 100 bytes
-      return true;
+  // Check for common proxy bytecode prefixes
+  if (PROXY_PREFIXES.some(p => code.startsWith(p))) return true;
+
+  // Walk opcodes in the first 100 bytes to find DELEGATECALL (0xf4)
+  const buf = Buffer.from(code.slice(0, 200), 'hex'); // first 100 bytes = 200 hex chars
+  let i = 0;
+  while (i < buf.length) {
+    const op = buf[i];
+    if (op === 0xf4) return true;
+    if (op >= 0x60 && op <= 0x7f) {
+      i += 1 + (op - 0x60 + 1);
+      continue;
     }
+    i++;
   }
 
-  // Starts with common proxy patterns
-  const proxyPrefixes = [
-    '363d3d37', // EIP-1167
-    '3660', // Some proxy variants
-    '366000', // Minimal proxy variants
-  ];
-
-  return proxyPrefixes.some(prefix => code.startsWith(prefix));
+  return false;
 }
 
-/**
- * Main proxy detection function
- * Attempts to detect and resolve proxy implementations
- *
- * @param address - Contract address
- * @param bytecode - Contract bytecode
- * @param rpcUrl - Optional RPC URL
- * @returns Proxy detection result
- */
 export async function detectProxy(
   address: string,
   bytecode: string,
   rpcUrl?: string
 ): Promise<ProxyDetectionResult> {
-  // First, check for EIP-1167 (can be done from bytecode alone)
   const eip1167Impl = detectEIP1167(bytecode);
   if (eip1167Impl) {
-    return {
-      is_proxy: true,
-      proxy_type: 'eip1167',
-      implementation_address: eip1167Impl,
-    };
+    return { is_proxy: true, proxy_type: 'eip1167', implementation_address: eip1167Impl };
   }
 
-  // If bytecode has proxy characteristics, check EIP-1967
   if (hasProxyCharacteristics(bytecode)) {
     const eip1967Impl = await detectEIP1967(address, rpcUrl);
     if (eip1967Impl) {
-      return {
-        is_proxy: true,
-        proxy_type: 'eip1967',
-        implementation_address: eip1967Impl,
-      };
+      return { is_proxy: true, proxy_type: 'eip1967', implementation_address: eip1967Impl };
     }
   }
 
-  return {
-    is_proxy: false,
-    proxy_type: 'none',
-    implementation_address: null,
-  };
+  return { is_proxy: false, proxy_type: 'none', implementation_address: null };
+}
+
+export async function fetchBytecode(address: string, rpcUrl?: string): Promise<string | null> {
+  const bytecode = await getClient(rpcUrl).getBytecode({ address: address as `0x${string}` });
+  return bytecode || null;
 }
 
 /**
- * Fetches bytecode for an address
- */
-export async function fetchBytecode(
-  address: string,
-  rpcUrl?: string
-): Promise<string | null> {
-  const client = getClient(rpcUrl);
-
-  try {
-    const bytecode = await client.getBytecode({
-      address: address as `0x${string}`,
-    });
-    return bytecode || null;
-  } catch (error) {
-    console.error('Bytecode fetch error:', error);
-    return null;
-  }
-}
-
-/**
- * Resolves proxy to implementation bytecode
- * Returns original bytecode if not a proxy
- *
- * @param address - Contract address
- * @param bytecode - Contract bytecode
- * @param rpcUrl - Optional RPC URL
- * @param maxDepth - Maximum proxy resolution depth (prevents infinite loops)
+ * Resolves proxy chain to implementation bytecode.
+ * Follows up to maxDepth proxy hops to prevent infinite loops.
  */
 export async function resolveImplementation(
   address: string,
   bytecode: string,
   rpcUrl?: string,
-  maxDepth: number = 3
+  maxDepth: number = 5
 ): Promise<{
   bytecode: string;
   is_proxy: boolean;
@@ -252,27 +158,29 @@ export async function resolveImplementation(
   let currentBytecode = bytecode;
   let currentAddress = address;
   let depth = 0;
-  let proxyResult: ProxyDetectionResult = {
-    is_proxy: false,
-    proxy_type: 'none',
-    implementation_address: null,
-  };
+  let lastProxy: ProxyDetectionResult = { is_proxy: false, proxy_type: 'none', implementation_address: null };
 
   while (depth < maxDepth) {
-    const detection = await detectProxy(currentAddress, currentBytecode, rpcUrl);
-
-    if (!detection.is_proxy || !detection.implementation_address) {
+    let detection: ProxyDetectionResult;
+    try {
+      detection = await detectProxy(currentAddress, currentBytecode, rpcUrl);
+    } catch {
+      // RPC failure during proxy resolution is non-fatal — use current bytecode
       break;
     }
+    if (!detection.is_proxy || !detection.implementation_address) break;
 
-    proxyResult = detection;
+    lastProxy = detection;
     depth++;
 
-    // Fetch implementation bytecode
-    const implBytecode = await fetchBytecode(detection.implementation_address, rpcUrl);
-    if (!implBytecode || implBytecode === '0x') {
+    let implBytecode: string | null;
+    try {
+      implBytecode = await fetchBytecode(detection.implementation_address, rpcUrl);
+    } catch {
+      // RPC failure fetching implementation is non-fatal — use current bytecode
       break;
     }
+    if (!implBytecode || implBytecode === '0x') break;
 
     currentBytecode = implBytecode;
     currentAddress = detection.implementation_address;
@@ -280,18 +188,9 @@ export async function resolveImplementation(
 
   return {
     bytecode: currentBytecode,
-    is_proxy: proxyResult.is_proxy,
-    proxy_type: proxyResult.proxy_type,
-    implementation_address: proxyResult.implementation_address,
+    is_proxy: lastProxy.is_proxy,
+    proxy_type: lastProxy.proxy_type,
+    implementation_address: lastProxy.implementation_address,
     resolution_depth: depth,
   };
 }
-
-export default {
-  detectEIP1167,
-  detectEIP1967,
-  detectProxy,
-  fetchBytecode,
-  resolveImplementation,
-  hasProxyCharacteristics,
-};
