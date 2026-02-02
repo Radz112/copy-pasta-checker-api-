@@ -55,4 +55,5 @@ export interface APIX402RequestBody {
   };
   token?: string;
   chain?: string;
+  query?: string;
 }

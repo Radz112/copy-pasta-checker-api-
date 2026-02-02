@@ -6,6 +6,7 @@ import { analyzeToken } from './services/analyzer';
 import { APIX402RequestBody } from './types';
 
 const app = express();
+app.set('trust proxy', 1);
 
 app.use(cors());
 app.use(express.json());
@@ -79,8 +80,20 @@ app.post('/api/v1/similarity', async (req: Request, res: Response) => {
   console.log("RAW BODY:", JSON.stringify(req.body));
   try {
     const body = req.body as APIX402RequestBody;
-    const token = body.body?.token || body.token;
-    const chain = body.body?.chain || body.chain;
+    let token: string | undefined;
+    let chain: string | undefined;
+
+    if (body.body?.token) {
+      token = body.body.token;
+      chain = body.body.chain;
+    } else if (body.query && typeof body.query === 'string') {
+      const params = new URLSearchParams(body.query);
+      token = params.get('token') || undefined;
+      chain = params.get('chain') || undefined;
+    } else {
+      token = body.token;
+      chain = body.chain;
+    }
 
     if (!token) {
       return res.status(400).json({
