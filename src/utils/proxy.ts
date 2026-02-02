@@ -1,5 +1,4 @@
 import { createPublicClient, http, getAddress, Hex } from 'viem';
-import { base } from 'viem/chains';
 import { ProxyDetectionResult } from '../types';
 import { config } from '../config';
 
@@ -31,7 +30,7 @@ export function getClient(rpcUrl?: string): RpcClient {
   const url = rpcUrl || config.baseRpcUrl;
   let client = clientCache.get(url);
   if (!client) {
-    client = createPublicClient({ chain: base, transport: http(url) }) as unknown as RpcClient;
+    client = createPublicClient({ transport: http(url) }) as unknown as RpcClient;
     clientCache.set(url, client);
   }
   return client;

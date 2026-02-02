@@ -15,6 +15,7 @@ export const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
 
   baseRpcUrl: process.env.BASE_RPC_URL || 'https://mainnet.base.org',
+  ethereumRpcUrl: process.env.ETHEREUM_RPC_URL || 'https://eth.llamarpc.com',
 
   apix402: {
     payToAddress: process.env.APIX402_PAY_TO_ADDRESS || '0xYOUR_WALLET_ADDRESS_HERE',
@@ -24,7 +25,7 @@ export const config = {
     description: 'The Laziness Detector - Exposes copy-paste token launches by comparing bytecode against Library of Legends',
   },
 
-  supportedChains: ['base'] as const,
+  supportedChains: ['base', 'ethereum'] as const,
 
   maxProxyDepth: 3,
 
@@ -35,4 +36,14 @@ export type SupportedChain = typeof config.supportedChains[number];
 
 export function isValidChain(chain: string): chain is SupportedChain {
   return config.supportedChains.includes(chain as SupportedChain);
+}
+
+export function getRpcUrl(chain: SupportedChain): string {
+  switch (chain) {
+    case 'ethereum':
+      return config.ethereumRpcUrl;
+    case 'base':
+    default:
+      return config.baseRpcUrl;
+  }
 }

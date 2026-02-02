@@ -1,4 +1,4 @@
-import { config, SupportedChain } from '../config';
+import { config, SupportedChain, getRpcUrl } from '../config';
 import { normalizeBytecode } from '../utils/normalization';
 import { resolveImplementation, fetchBytecode } from '../utils/proxy';
 import { preprocessLibrary, compareToLibrary, ProcessedLegend } from '../utils/similarity';
@@ -31,7 +31,8 @@ export async function analyzeToken(
       };
     }
 
-    const rawBytecode = await fetchBytecode(tokenAddress, config.baseRpcUrl);
+    const rpcUrl = getRpcUrl(chain);
+    const rawBytecode = await fetchBytecode(tokenAddress, rpcUrl);
 
     if (!rawBytecode || rawBytecode === '0x') {
       return {
@@ -47,7 +48,7 @@ export async function analyzeToken(
       };
     }
 
-    const resolved = await resolveImplementation(tokenAddress, rawBytecode, config.baseRpcUrl, config.maxProxyDepth);
+    const resolved = await resolveImplementation(tokenAddress, rawBytecode, rpcUrl, config.maxProxyDepth);
     const normalized = normalizeBytecode(resolved.bytecode);
 
     const cached = analysisCache.get(normalized);
