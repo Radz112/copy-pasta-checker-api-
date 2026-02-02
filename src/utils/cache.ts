@@ -7,10 +7,6 @@ interface CacheEntry {
   hitCount: number;
 }
 
-/**
- * In-memory cache keyed by keccak256(normalized_bytecode).
- * Same contract logic always produces the same key regardless of address.
- */
 export class AnalysisCache {
   private cache = new Map<string, CacheEntry>();
   private enabled = true;
@@ -52,7 +48,6 @@ export class AnalysisCache {
     return this.cache.has(this.generateKey(normalizedBytecode));
   }
 
-  /** Evict the entry with lowest score (hitCount-weighted, age-penalized). */
   private evict(): void {
     let worstKey: string | null = null;
     let worstScore = Infinity;

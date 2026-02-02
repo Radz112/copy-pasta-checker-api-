@@ -1,8 +1,8 @@
 import {
   generateVerdict,
   generateRoast,
-  getScoreEmoji,
-  SPECIAL_VERDICTS,
+  NO_CODE_VERDICT,
+  NO_CODE_ROAST,
 } from '../src/utils/verdict';
 
 describe('Verdict Utils', () => {
@@ -65,39 +65,11 @@ describe('Verdict Utils', () => {
 
   });
 
-  describe('getScoreEmoji', () => {
+  describe('NO_CODE constants', () => {
 
-    test('should return pasta emoji for 95%+', () => {
-      expect(getScoreEmoji(95)).toBe('🍝');
-      expect(getScoreEmoji(100)).toBe('🍝');
-    });
-
-    test('should return clipboard emoji for 85-94%', () => {
-      expect(getScoreEmoji(85)).toBe('📋');
-      expect(getScoreEmoji(94)).toBe('📋');
-    });
-
-    test('should return neutral emoji for 70-84%', () => {
-      expect(getScoreEmoji(70)).toBe('😐');
-    });
-
-    test('should return zombie emoji for 50-69%', () => {
-      expect(getScoreEmoji(50)).toBe('🧟');
-    });
-
-    test('should return sparkle emoji for <50%', () => {
-      expect(getScoreEmoji(49)).toBe('✨');
-      expect(getScoreEmoji(0)).toBe('✨');
-    });
-
-  });
-
-  describe('SPECIAL_VERDICTS', () => {
-
-    test('should have NO_CODE special case', () => {
-      expect(SPECIAL_VERDICTS.NO_CODE).toBeDefined();
-      expect(SPECIAL_VERDICTS.NO_CODE.verdict).toContain('No Code');
-      expect(SPECIAL_VERDICTS.NO_CODE.roast.length).toBeGreaterThan(0);
+    test('should have verdict and roast', () => {
+      expect(NO_CODE_VERDICT).toContain('No Code');
+      expect(NO_CODE_ROAST.length).toBeGreaterThan(0);
     });
 
   });

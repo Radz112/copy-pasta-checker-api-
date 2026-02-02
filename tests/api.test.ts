@@ -1,6 +1,5 @@
 import request from 'supertest';
 
-// Mock the analyzer service BEFORE importing the app
 jest.mock('../src/services/analyzer', () => ({
   analyzeToken: jest.fn().mockResolvedValue({
     status: 'success',
@@ -18,10 +17,14 @@ jest.mock('../src/services/analyzer', () => ({
       analysis_time_ms: 150,
     },
   }),
-  getCacheStats: jest.fn().mockReturnValue({ entries: 0, enabled: true, maxEntries: 10000, totalHits: 0 }),
 }));
 
-// Import the REAL app after mocks are in place
+jest.mock('../src/utils/cache', () => ({
+  analysisCache: {
+    getStats: jest.fn().mockReturnValue({ entries: 0, enabled: true, maxEntries: 10000, totalHits: 0 }),
+  },
+}));
+
 import app from '../src/index';
 
 describe('API Endpoints', () => {
@@ -31,7 +34,6 @@ describe('API Endpoints', () => {
     test('should return health status with all fields', async () => {
       const response = await request(app).get('/health');
 
-      // In test env RPC may not be reachable — accept 200 or 503
       expect([200, 503]).toContain(response.status);
       expect(['healthy', 'degraded']).toContain(response.body.status);
       expect(response.body.service).toBeDefined();

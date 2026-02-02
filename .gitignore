@@ -2,6 +2,8 @@ node_modules/
 dist/
 coverage/
 .env
+.env.local
+.env.production
 *.js.map
 *.d.ts
 !jest.config.js

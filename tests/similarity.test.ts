@@ -1,7 +1,6 @@
 import {
   chunkBytecode,
   jaccardSimilarity,
-  quickCompare,
   preprocessLibrary,
   compareToLibrary,
 } from '../src/utils/similarity';
@@ -15,10 +14,8 @@ describe('Similarity Utils', () => {
       const bytecode = '6080604052348015';
       const chunks = chunkBytecode(bytecode);
 
-      // With overlapping chunks (step of 2), we get more chunks
       expect(chunks.size).toBeGreaterThan(0);
 
-      // Each chunk should be 8 hex chars (4 bytes)
       for (const chunk of chunks) {
         expect(chunk.length).toBe(8);
       }
@@ -28,7 +25,6 @@ describe('Similarity Utils', () => {
       const shortBytecode = '6080';
       const chunks = chunkBytecode(shortBytecode);
 
-      // Too short for even one chunk
       expect(chunks.size).toBe(0);
     });
 
@@ -36,7 +32,6 @@ describe('Similarity Utils', () => {
       const repeatingBytecode = '6060606060606060';
       const chunks = chunkBytecode(repeatingBytecode);
 
-      // Repeating pattern should produce limited unique chunks
       expect(chunks.size).toBeLessThan(repeatingBytecode.length / 2);
     });
 
@@ -68,8 +63,6 @@ describe('Similarity Utils', () => {
     test('should return 50 for half overlap', () => {
       const setA = new Set(['aaaa', 'bbbb']);
       const setB = new Set(['bbbb', 'cccc']);
-      // Intersection: 1 (bbbb), Union: 3 (aaaa, bbbb, cccc)
-      // 1/3 = 33.33%
       expect(jaccardSimilarity(setA, setB)).toBeCloseTo(33.33, 1);
     });
 
@@ -80,32 +73,6 @@ describe('Similarity Utils', () => {
       expect(jaccardSimilarity(empty, empty)).toBe(100);
       expect(jaccardSimilarity(empty, nonEmpty)).toBe(0);
       expect(jaccardSimilarity(nonEmpty, empty)).toBe(0);
-    });
-
-  });
-
-  describe('quickCompare', () => {
-
-    test('should return 100 for identical bytecode', () => {
-      const bytecode = '0x6080604052348015610010576000';
-      expect(quickCompare(bytecode, bytecode)).toBe(100);
-    });
-
-    test('should return high score for similar bytecode', () => {
-      const original = '0x6080604052348015610010576000';
-      // Change last few bytes
-      const similar = '0x6080604052348015610010576001';
-
-      const score = quickCompare(original, similar);
-      expect(score).toBeGreaterThan(80);
-    });
-
-    test('should return low score for different bytecode', () => {
-      const bytecodeA = '0x6080604052348015610010576000';
-      const bytecodeB = '0xf4f4f4f4f4f4f4f4f4f4f4f4f4f4';
-
-      const score = quickCompare(bytecodeA, bytecodeB);
-      expect(score).toBeLessThan(50);
     });
 
   });
@@ -139,7 +106,7 @@ describe('Similarity Utils', () => {
 
     test('should return sorted results', () => {
       const processedLibrary = preprocessLibrary(mockLibrary);
-      const target = '0x6080604052348015610010576000'; // Same as Legend A
+      const target = '0x6080604052348015610010576000';
 
       const results = compareToLibrary(target, processedLibrary);
 

@@ -3,14 +3,12 @@ import { base } from 'viem/chains';
 import { ProxyDetectionResult } from '../types';
 import { config } from '../config';
 
-/** Typed to the exact methods we use from viem's PublicClient */
 interface RpcClient {
   getStorageAt(args: { address: `0x${string}`; slot: Hex }): Promise<Hex | undefined>;
   getBytecode(args: { address: `0x${string}` }): Promise<`0x${string}` | undefined>;
   getChainId(): Promise<number>;
 }
 
-/** keccak256("eip1967.proxy.implementation") - 1 */
 const EIP1967_SLOT =
   '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc' as Hex;
 
@@ -23,12 +21,10 @@ const EIP1167 = {
   FULL_LENGTH: 90,
 } as const;
 
-/** Clone patterns to scan for (EIP-1167 prefix is checked first via startsWith) */
 const ALT_CLONE_PATTERN = '363d3d373d3d3d3d60368038038091363936013d73';
 
 const PROXY_PREFIXES = ['363d3d37', '3660', '366000'] as const;
 
-/** Cached viem client per RPC URL */
 const clientCache = new Map<string, RpcClient>();
 
 export function getClient(rpcUrl?: string): RpcClient {
@@ -46,10 +42,6 @@ function extractAddress(hex: string, start: number): string | null {
   return getAddress(`0x${hex.slice(start, start + 40)}`);
 }
 
-/**
- * Detects EIP-1167 minimal proxy pattern in bytecode.
- * Returns the implementation address or null.
- */
 export function detectEIP1167(bytecode: string): string | null {
   const code = bytecode.toLowerCase().replace('0x', '');
 
@@ -63,7 +55,6 @@ export function detectEIP1167(bytecode: string): string | null {
     }
   }
 
-  // Check alternative clone pattern
   const idx = code.indexOf(ALT_CLONE_PATTERN);
   if (idx !== -1) {
     return extractAddress(code, idx + ALT_CLONE_PATTERN.length);
@@ -72,9 +63,6 @@ export function detectEIP1167(bytecode: string): string | null {
   return null;
 }
 
-/**
- * Reads EIP-1967 implementation storage slot.
- */
 export async function detectEIP1967(address: string, rpcUrl?: string): Promise<string | null> {
   const slot = await getClient(rpcUrl).getStorageAt({
     address: address as `0x${string}`,
@@ -92,14 +80,10 @@ export async function detectEIP1967(address: string, rpcUrl?: string): Promise<s
 export function hasProxyCharacteristics(bytecode: string): boolean {
   const code = bytecode.toLowerCase().replace('0x', '');
 
-  // Small contracts are likely proxies
   if (code.length < 400) return true;
-
-  // Check for common proxy bytecode prefixes
   if (PROXY_PREFIXES.some(p => code.startsWith(p))) return true;
 
-  // Walk opcodes in the first 100 bytes to find DELEGATECALL (0xf4)
-  const buf = Buffer.from(code.slice(0, 200), 'hex'); // first 100 bytes = 200 hex chars
+  const buf = Buffer.from(code.slice(0, 200), 'hex');
   let i = 0;
   while (i < buf.length) {
     const op = buf[i];
@@ -139,10 +123,6 @@ export async function fetchBytecode(address: string, rpcUrl?: string): Promise<s
   return bytecode || null;
 }
 
-/**
- * Resolves proxy chain to implementation bytecode.
- * Follows up to maxDepth proxy hops to prevent infinite loops.
- */
 export async function resolveImplementation(
   address: string,
   bytecode: string,
@@ -164,8 +144,8 @@ export async function resolveImplementation(
     let detection: ProxyDetectionResult;
     try {
       detection = await detectProxy(currentAddress, currentBytecode, rpcUrl);
-    } catch {
-      // RPC failure during proxy resolution is non-fatal — use current bytecode
+    } catch (error) {
+      console.warn('Proxy detection failed at depth', depth, error instanceof Error ? error.message : error);
       break;
     }
     if (!detection.is_proxy || !detection.implementation_address) break;
@@ -176,8 +156,8 @@ export async function resolveImplementation(
     let implBytecode: string | null;
     try {
       implBytecode = await fetchBytecode(detection.implementation_address, rpcUrl);
-    } catch {
-      // RPC failure fetching implementation is non-fatal — use current bytecode
+    } catch (error) {
+      console.warn('Implementation fetch failed at depth', depth, error instanceof Error ? error.message : error);
       break;
     }
     if (!implBytecode || implBytecode === '0x') break;

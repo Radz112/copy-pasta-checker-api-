@@ -73,7 +73,7 @@ const VERDICT_TIERS: VerdictTier[] = [
 ];
 
 function getTier(score: number): VerdictTier {
-  return VERDICT_TIERS.find(t => score >= t.minScore) || VERDICT_TIERS[VERDICT_TIERS.length - 1];
+  return VERDICT_TIERS.find(t => score >= t.minScore)!;
 }
 
 export function generateVerdict(score: number): string {
@@ -85,17 +85,5 @@ export function generateRoast(score: number): string {
   return roasts[Math.floor(Math.random() * roasts.length)];
 }
 
-export function getScoreEmoji(score: number): string {
-  if (score >= 95) return "🍝";
-  if (score >= 85) return "📋";
-  if (score >= 70) return "😐";
-  if (score >= 50) return "🧟";
-  return "✨";
-}
-
-export const SPECIAL_VERDICTS = {
-  NO_CODE: {
-    verdict: "No Code Found ❌",
-    roast: "This address is emptier than the dev's promises.",
-  },
-} as const;
+export const NO_CODE_VERDICT = "No Code Found ❌";
+export const NO_CODE_ROAST = "This address is emptier than the dev's promises.";

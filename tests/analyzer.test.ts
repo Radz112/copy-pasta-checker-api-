@@ -1,6 +1,6 @@
-import { analyzeToken, clearCache } from '../src/services/analyzer';
+import { analyzeToken } from '../src/services/analyzer';
+import { analysisCache } from '../src/utils/cache';
 
-// Mock at the RPC boundary — not the analyzer
 jest.mock('../src/utils/proxy', () => {
   const actual = jest.requireActual('../src/utils/proxy');
   return {
@@ -12,11 +12,10 @@ jest.mock('../src/utils/proxy', () => {
 
 const { fetchBytecode, resolveImplementation } = require('../src/utils/proxy');
 
-// A realistic ERC20 bytecode snippet (long enough to not be flagged as minimal)
 const FAKE_BYTECODE = '0x' + '6080604052'.repeat(100);
 
 beforeEach(() => {
-  clearCache();
+  analysisCache.clear();
   jest.clearAllMocks();
 });
 
@@ -106,10 +105,8 @@ describe('analyzeToken (integration)', () => {
     expect(result1.status).toBe('success');
     expect(result2.status).toBe('success');
     if (result1.status === 'success' && result2.status === 'success') {
-      // Same bytecode -> same score from cache
       expect(result2.data.similarity_score).toBe(result1.data.similarity_score);
       expect(result2.data.match_name).toBe(result1.data.match_name);
-      // But token address should reflect the second call
       expect(result2.data.token).toBe('0x0000000000000000000000000000000000000002');
     }
   });

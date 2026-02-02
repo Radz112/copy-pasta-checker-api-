@@ -1,11 +1,8 @@
 import { LegendEntry, SimilarityResult } from '../types';
 import { normalizeBytecode } from './normalization';
 
-const CHUNK_SIZE_HEX = 8; // 4 bytes = 8 hex chars
+const CHUNK_SIZE_HEX = 8; // 4 bytes
 
-/**
- * Splits bytecode into overlapping 4-byte chunks (step = 1 byte).
- */
 export function chunkBytecode(bytecode: string, chunkSize: number = CHUNK_SIZE_HEX): Set<string> {
   const chunks = new Set<string>();
   const clean = bytecode.replace('0x', '').toLowerCase();
@@ -17,9 +14,7 @@ export function chunkBytecode(bytecode: string, chunkSize: number = CHUNK_SIZE_H
   return chunks;
 }
 
-/**
- * Jaccard Index = |A ∩ B| / |A ∪ B| * 100
- */
+/** |A ∩ B| / |A ∪ B| * 100 */
 export function jaccardSimilarity(setA: Set<string>, setB: Set<string>): number {
   if (setA.size === 0 && setB.size === 0) return 100;
   if (setA.size === 0 || setB.size === 0) return 0;
@@ -40,16 +35,12 @@ export interface ProcessedLegend {
 export function preprocessLibrary(legends: LegendEntry[]): ProcessedLegend[] {
   return legends.map(legend => ({
     entry: legend,
-    chunks: chunkBytecode(normalizeBytecode(legend.bytecode).normalized),
+    chunks: chunkBytecode(normalizeBytecode(legend.bytecode)),
   }));
 }
 
-/**
- * Compares target bytecode against all legends.
- * Returns results sorted by similarity score descending.
- */
 export function compareToLibrary(targetBytecode: string, library: ProcessedLegend[]): SimilarityResult[] {
-  const targetChunks = chunkBytecode(normalizeBytecode(targetBytecode).normalized);
+  const targetChunks = chunkBytecode(normalizeBytecode(targetBytecode));
 
   return library
     .map(legend => ({
@@ -59,14 +50,4 @@ export function compareToLibrary(targetBytecode: string, library: ProcessedLegen
       similarity_score: Math.round(jaccardSimilarity(targetChunks, legend.chunks) * 100) / 100,
     }))
     .sort((a, b) => b.similarity_score - a.similarity_score);
-}
-
-/**
- * Quick pairwise similarity check between two bytecodes.
- */
-export function quickCompare(bytecodeA: string, bytecodeB: string): number {
-  return jaccardSimilarity(
-    chunkBytecode(normalizeBytecode(bytecodeA).normalized),
-    chunkBytecode(normalizeBytecode(bytecodeB).normalized),
-  );
 }

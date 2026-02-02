@@ -15,7 +15,6 @@ export const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
 
   baseRpcUrl: process.env.BASE_RPC_URL || 'https://mainnet.base.org',
-  ethereumRpcUrl: process.env.ETHEREUM_RPC_URL || 'https://eth.llamarpc.com',
 
   apix402: {
     payToAddress: process.env.APIX402_PAY_TO_ADDRESS || '0xYOUR_WALLET_ADDRESS_HERE',
@@ -27,10 +26,7 @@ export const config = {
 
   supportedChains: ['base'] as const,
 
-  analysis: {
-    maxProxyDepth: 3,
-    cacheEnabled: true,
-  },
+  maxProxyDepth: 3,
 
   library: libraryOfLegends,
 };
@@ -39,8 +35,4 @@ export type SupportedChain = typeof config.supportedChains[number];
 
 export function isValidChain(chain: string): chain is SupportedChain {
   return config.supportedChains.includes(chain as SupportedChain);
-}
-
-export function getRpcUrl(_chain: SupportedChain): string {
-  return config.baseRpcUrl;
 }

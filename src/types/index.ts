@@ -1,4 +1,3 @@
-// Legend entry from library_of_legends.json
 export interface LegendEntry {
   id: string;
   name: string;
@@ -11,23 +10,12 @@ export interface LegendEntry {
   note: string;
 }
 
-// Normalization result
-export interface NormalizationResult {
-  normalized: string;
-  original_size: number;
-  normalized_size: number;
-  metadata_stripped: number;
-  addresses_masked: number;
-}
-
-// Proxy detection result
 export interface ProxyDetectionResult {
   is_proxy: boolean;
   proxy_type: 'eip1167' | 'eip1967' | 'none';
   implementation_address: string | null;
 }
 
-// Similarity comparison result
 export interface SimilarityResult {
   legend_id: string;
   legend_name: string;
@@ -35,9 +23,8 @@ export interface SimilarityResult {
   similarity_score: number;
 }
 
-// Final API response
 export interface AnalysisResponse {
-  status: 'success' | 'error';
+  status: 'success';
   data: {
     token: string;
     chain: string;
@@ -53,7 +40,6 @@ export interface AnalysisResponse {
   };
 }
 
-// Error response
 export interface ErrorResponse {
   status: 'error';
   error: {
@@ -62,7 +48,6 @@ export interface ErrorResponse {
   };
 }
 
-// APIX402 nested request body
 export interface APIX402RequestBody {
   body?: {
     token: string;
