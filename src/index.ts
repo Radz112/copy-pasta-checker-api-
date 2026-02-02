@@ -90,6 +90,7 @@ app.get('/api/v1/similarity', (req: Request, res: Response) => {
 });
 
 app.post('/api/v1/similarity', async (req: Request, res: Response) => {
+  console.log("RAW BODY:", JSON.stringify(req.body));
   try {
     const body = req.body as APIX402RequestBody;
     const token = body.body?.token || body.token;
