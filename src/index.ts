@@ -85,14 +85,14 @@ app.post('/api/v1/similarity', async (req: Request, res: Response) => {
 
     if (body.body?.token) {
       token = body.body.token;
-      chain = body.body.chain;
-    } else if (body.query && typeof body.query === 'string') {
+      chain = body.body.chain || body.query || undefined;
+    } else if (body.query && typeof body.query === 'string' && body.query.includes('=')) {
       const params = new URLSearchParams(body.query);
       token = params.get('token') || undefined;
       chain = params.get('chain') || undefined;
     } else {
       token = body.token;
-      chain = body.chain;
+      chain = body.chain || body.query || undefined;
     }
 
     if (!token) {
