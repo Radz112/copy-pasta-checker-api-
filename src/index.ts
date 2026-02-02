@@ -3,8 +3,6 @@ import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { config, isValidChain } from './config';
 import { analyzeToken } from './services/analyzer';
-import { analysisCache } from './utils/cache';
-import { getClient } from './utils/proxy';
 import { APIX402RequestBody } from './types';
 
 const app = express();
@@ -32,24 +30,12 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-app.get('/health', async (req: Request, res: Response) => {
-  let rpcStatus: 'connected' | 'unreachable';
-  try {
-    await getClient(config.baseRpcUrl).getChainId();
-    rpcStatus = 'connected';
-  } catch (error) {
-    console.warn('Health check RPC failed:', error instanceof Error ? error.message : error);
-    rpcStatus = 'unreachable';
-  }
-
-  const status = rpcStatus === 'connected' ? 'healthy' : 'degraded';
-  res.status(rpcStatus === 'connected' ? 200 : 503).json({
-    status,
-    service: config.apix402.apiName,
-    version: config.apix402.apiVersion,
+app.get('/health', (_req: Request, res: Response) => {
+  res.json({
+    status: 'healthy',
+    service: 'Copy-Pasta Checker',
+    version: '1.0.0',
     timestamp: new Date().toISOString(),
-    rpc: rpcStatus,
-    cache: analysisCache.getStats(),
   });
 });
 

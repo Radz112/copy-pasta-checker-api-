@@ -34,14 +34,11 @@ describe('API Endpoints', () => {
     test('should return health status with all fields', async () => {
       const response = await request(app).get('/health');
 
-      expect([200, 503]).toContain(response.status);
-      expect(['healthy', 'degraded']).toContain(response.body.status);
+      expect(response.status).toBe(200);
+      expect(response.body.status).toBe('healthy');
       expect(response.body.service).toBeDefined();
       expect(response.body.version).toBeDefined();
       expect(response.body.timestamp).toBeDefined();
-      expect(response.body.rpc).toBeDefined();
-      expect(['connected', 'unreachable']).toContain(response.body.rpc);
-      expect(response.body.cache).toBeDefined();
     });
 
   });
