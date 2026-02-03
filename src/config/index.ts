@@ -10,21 +10,19 @@ try {
   console.warn('Warning: library_of_legends.json not found. Run npm run fetch-legends first.');
 }
 
-// Debug: log raw env vars at startup
-console.log('DEBUG RAW ENV:', JSON.stringify({
-  BASE_RPC_URL: process.env.BASE_RPC_URL,
-  APIX402_PAY_TO_ADDRESS: process.env.APIX402_PAY_TO_ADDRESS,
-}));
+function cleanEnv(value: string | undefined, fallback: string): string {
+  return (value || fallback).trim().replace(/^=/, '');
+}
 
 export const config = {
-  port: parseInt(process.env.PORT || '3000', 10),
-  nodeEnv: process.env.NODE_ENV || 'development',
+  port: parseInt(cleanEnv(process.env.PORT, '3000'), 10),
+  nodeEnv: cleanEnv(process.env.NODE_ENV, 'development'),
 
-  baseRpcUrl: (process.env.BASE_RPC_URL || 'https://mainnet.base.org').trim().replace(/^=/, ''),
-  ethereumRpcUrl: (process.env.ETHEREUM_RPC_URL || 'https://eth.llamarpc.com').trim().replace(/^=/, ''),
+  baseRpcUrl: cleanEnv(process.env.BASE_RPC_URL, 'https://mainnet.base.org'),
+  ethereumRpcUrl: cleanEnv(process.env.ETHEREUM_RPC_URL, 'https://eth.llamarpc.com'),
 
   apix402: {
-    payToAddress: process.env.APIX402_PAY_TO_ADDRESS || '0xYOUR_WALLET_ADDRESS_HERE',
+    payToAddress: cleanEnv(process.env.APIX402_PAY_TO_ADDRESS, '0xYOUR_WALLET_ADDRESS_HERE'),
     priceUsd: parseFloat(process.env.API_PRICE_USD || '0.01'),
     apiName: 'Copy-Pasta Checker',
     apiVersion: '1.0.0',
