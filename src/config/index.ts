@@ -10,12 +10,18 @@ try {
   console.warn('Warning: library_of_legends.json not found. Run npm run fetch-legends first.');
 }
 
+// Debug: log raw env vars at startup
+console.log('DEBUG RAW ENV:', JSON.stringify({
+  BASE_RPC_URL: process.env.BASE_RPC_URL,
+  APIX402_PAY_TO_ADDRESS: process.env.APIX402_PAY_TO_ADDRESS,
+}));
+
 export const config = {
   port: parseInt(process.env.PORT || '3000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
 
-  baseRpcUrl: process.env.BASE_RPC_URL || 'https://mainnet.base.org',
-  ethereumRpcUrl: process.env.ETHEREUM_RPC_URL || 'https://eth.llamarpc.com',
+  baseRpcUrl: (process.env.BASE_RPC_URL || 'https://mainnet.base.org').trim().replace(/^=/, ''),
+  ethereumRpcUrl: (process.env.ETHEREUM_RPC_URL || 'https://eth.llamarpc.com').trim().replace(/^=/, ''),
 
   apix402: {
     payToAddress: process.env.APIX402_PAY_TO_ADDRESS || '0xYOUR_WALLET_ADDRESS_HERE',
